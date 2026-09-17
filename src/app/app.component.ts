@@ -1,10 +1,65 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { App, PluginListenerHandle } from '@capacitor/app';
+import { Platform, ToastController } from '@ionic/angular';
+import { Router } from '@angular/router';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
 @Component({
   selector: 'app-root',
-  template: '<ion-app><ion-router-outlet></ion-router-outlet></ion-app>',
-  standalone: true,
-  imports: [IonApp, IonRouterOutlet],
+  templateUrl: 'app.component.html',
+  styleUrls: ['app.component.scss'],
 })
-export class AppComponent {}
+export class AppComponent implements OnInit, OnDestroy {
+  private backButtonListener?: PluginListenerHandle;
+  private lastBackPress = 0;
+  private readonly exitDelay = 2000;
+
+  constructor(
+    private platform: Platform,
+    private router: Router,
+    private toastController: ToastController
+  ) {}
+
+  async ngOnInit() {
+    await this.platform.ready();
+
+    if (!this.platform.is('android')) {
+      return;
+    }
+
+    this.backButtonListener = await App.addListener('backButton', async () => {
+      const now = Date.now();
+
+      // Change these paths if your main page uses a different route.
+      const isHomePage =
+        this.router.url === '/home' ||
+        this.router.url === '/tabs/home' ||
+        this.router.url === '/';
+
+      if (!isHomePage) {
+        window.history.back();
+        return;
+      }
+
+      if (now - this.lastBackPress < this.exitDelay) {
+        await App.exitApp();
+        return;
+      }
+
+      this.lastBackPress = now;
+
+      const toast = await this.toastController.create({
+        message: 'Press back again to exit',
+        duration: this.exitDelay,
+        position: 'bottom',
+        color: 'dark'
+      });
+
+      await toast.present();
+    });
+  }
+
+  ngOnDestroy() {
+    this.backButtonListener?.remove();
+  }
+}
