@@ -1,0 +1,32 @@
+<ion-content [fullscreen]="true" class="app-content">
+  <div class="intro-screen" *ngIf="loading">
+    <div class="logo-wrap">
+      <div class="logo-ring"></div>
+      <div class="logo-text">T</div>
+    </div>
+
+    <h1>tsjovan</h1>
+    <p>Loading your experience...</p>
+
+    <div class="progress-track">
+      <div class="progress-bar"></div>
+    </div>
+  </div>
+
+  <div class="error-screen" *ngIf="loadError">
+    <ion-icon name="warning-outline"></ion-icon>
+    <h2>Unable to load the website</h2>
+    <p>The website may block being displayed inside an app.</p>
+    <ion-button (click)="reloadPage()">Try again</ion-button>
+  </div>
+
+  <iframe
+    id="website-frame"
+    class="website-frame"
+    [src]="websiteUrl"
+    title="tsjovan website"
+    (load)="onPageLoaded()"
+    (error)="onPageError()"
+    allow="camera; microphone; geolocation; fullscreen"
+  ></iframe>
+</ion-content>
