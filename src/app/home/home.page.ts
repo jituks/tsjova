@@ -1,65 +1,48 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import {
-  IonButton,
-  IonContent,
-  IonIcon,
-} from '@ionic/angular';
+import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { IonContent, IonIcon, IonButton } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { warningOutline } from 'ionicons/icons';
-
-addIcons({
-  'warning-outline': warningOutline,
-});
 
 @Component({
   selector: 'app-home',
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
   standalone: true,
-  imports: [
-    CommonModule,
-    IonContent,
-    IonButton,
-    IonIcon,
-  ],
+  imports: [CommonModule, IonContent, IonIcon, IonButton],
 })
 export class HomePage implements OnInit {
-  // Replace with the real URL for your tsjovan app.
-  websiteUrl = 'https://example.com';
+  rawUrl: string = 'https://transjovancap.com'; // Replace with target URL
+  websiteUrl!: SafeResourceUrl;
+  loading: boolean = true;
+  loadError: boolean = false;
 
-  loading = true;
-  loadError = false;
-
-  ngOnInit(): void {
-    setTimeout(() => {
-      if (!this.loadError) {
-        this.loading = false;
-      }
-    }, 1800);
+  constructor(private sanitizer: DomSanitizer) {
+    addIcons({ warningOutline });
   }
 
-  onPageLoaded(): void {
-    setTimeout(() => {
-      this.loading = false;
-    }, 500);
+  ngOnInit() {
+    this.loadWebsite();
   }
 
-  onPageError(): void {
-    this.loadError = true;
+  loadWebsite() {
+    this.loading = true;
+    this.loadError = false;
+    // Bypasses Angular's XSS security filter for iframe src
+    this.websiteUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.rawUrl);
+  }
+
+  onPageLoaded() {
     this.loading = false;
   }
 
-  reloadPage(): void {
-    this.loadError = false;
-    this.loading = true;
+  onPageError() {
+    this.loading = false;
+    this.loadError = true;
+  }
 
-    const frame = document.getElementById(
-      'website-frame'
-    ) as HTMLIFrameElement | null;
-
-    if (frame) {
-      frame.src = this.websiteUrl;
-    }
+  reloadPage() {
+    this.loadWebsite();
   }
 }
