@@ -1,19 +1,17 @@
-name: tsjovan CI
+name: tsjovan Android APK
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
-    name: Build Ionic application
+  build-android:
+    name: Build and publish Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -26,16 +24,77 @@ jobs:
           node-version: 22.22.3
           cache: npm
 
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build application
+      - name: Build Ionic application
         run: npm run build
 
-      - name: Upload web build
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/tsjovan.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v5
         with:
-          name: tsjovan-www
-          path: www
+          name: tsjovan-apk
+          path: release/tsjovan.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Publish APK to GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest release/tsjovan.apk --clobber
+          else
+            gh release create latest release/tsjovan.apk \
+              --title "tsjovan latest APK" \
+              --notes "Latest tsjovan Android APK build from commit ${{ github.sha }}." \
+              --latest
+          fi
+
+      - name: Generate APK download QR code
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qrencode
+
+          DIRECT_URL="https://github.com/${{ github.repository }}/releases/download/latest/tsjovan.apk"
+          ENCODED_URL=$(node -p "encodeURIComponent('$DIRECT_URL')")
+
+          echo "========================================================"
+          echo "tsjovan APK download URL:"
+          echo "$DIRECT_URL"
+          echo "========================================================"
+
+          qrencode -t ANSI256 "$DIRECT_URL"
+
+          {
+            echo "## tsjovan Android APK"
+            echo ""
+            echo "Scan the QR code below to download the latest Android APK."
+            echo ""
+            echo "![tsjovan APK QR Code](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${ENCODED_URL})"
+            echo ""
+            echo "[Download tsjovan APK](${DIRECT_URL})"
+          } >> "$GITHUB_STEP_SUMMARY"
