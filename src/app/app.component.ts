@@ -1,13 +1,23 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { App, PluginListenerHandle } from '@capacitor/app';
-import { Platform, ToastController } from '@ionic/angular';
 import { Router } from '@angular/router';
-import { IonApp, IonRouterOutlet } from '@ionic/angular';
+import { App } from '@capacitor/app';
+import { PluginListenerHandle } from '@capacitor/core';
+import {
+  IonApp,
+  IonRouterOutlet,
+  Platform,
+  ToastController
+} from '@ionic/angular';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
+  standalone: true,
+  imports: [
+    IonApp,
+    IonRouterOutlet
+  ]
 })
 export class AppComponent implements OnInit, OnDestroy {
   private backButtonListener?: PluginListenerHandle;
@@ -30,11 +40,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.backButtonListener = await App.addListener('backButton', async () => {
       const now = Date.now();
 
-      // Change these paths if your main page uses a different route.
       const isHomePage =
+        this.router.url === '/' ||
         this.router.url === '/home' ||
-        this.router.url === '/tabs/home' ||
-        this.router.url === '/';
+        this.router.url === '/tabs/home';
 
       if (!isHomePage) {
         window.history.back();
